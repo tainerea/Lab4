@@ -277,34 +277,36 @@ void runTurn(int distLeft, int distRight) {
 
 void goToLight() {
   int err = leftPhoto - rightPhoto;
-  if (state == 0) { //detect light
+  //Serial.println(state);
+  if (lightState == 0) { //detect light
     if (err < 0) {
-      spin(quarter_rotation, -1);
-      lastSpin = 1;
+      spin(quarter_rotation + 100, 1);
+      lastSpin = -1;
     } else {
-      spin(quarter_rotation, 1);
+      spin(quarter_rotation + 100, -1);
       lastSpin = 1;
     }
-    state = 1;
-  } else if (state == 1) { // drive quarter rotation
+    lightState = 1;
+  } else if (lightState == 1) { // drive quarter rotation
+    if (front < 6 && front > 0) {
+      lightState == 2;
+    }
     forward(quarter_rotation);
     moveCounter++;
-    if (front < 6 && front > 0) {
-      state == 2;
-    }
-  } else if (state == 2) { // docking
+ 
+  } else if (lightState == 2) { // docking
     spin(half_rotation, 1);
-    state == 3;
-  } else if (state == 3) { // go back
+    lightState == 3;
+  } else if (lightState == 3) { // go back
     forward(quarter_rotation);
     moveCounter--;
     if (moveCounter == 0) {
-      state == 4;
+      lightState == 4;
     }
-  } else if (state == 4) {
+  } else if (lightState == 4) {
     spin(3 * quarter_rotation, lastSpin);
     forward(half_rotation);
-    state == 0;
+    lightState == 0;
     State = 0;
   }
 }
@@ -358,19 +360,6 @@ int rotateToLight() {
   return 1;
 }
 
-void loop()
-{
-  updateSensors();      //Updates all of the sensor values and decides the robot state
-  //wallBang();           //wall following PD control
-  //forward(quarter_turn)
-  updateLight();
-  //  while (rotateToLight() == 1){
-  //    updateLight();
-  //  }
-  //
-  //  delay(500);
-  stateSelector();
-}
 
 /*
 
@@ -408,7 +397,7 @@ void wallBang() {
     }
     if (ri_cerror == 0) {                 //no error, robot in deadband (4-6 inches)
       Serial.println("right wall detected, drive forward");
-      forward(quarter_rotation);            //move robot forward
+      forward(quarter_rotation - 100);            //move robot forward
     }
     else {
       if (ri_cerror < 0) {          //negative error means too close
@@ -442,7 +431,7 @@ void wallBang() {
     }
     if (li_cerror == 0) {           //no error robot in dead band drives forward
       //Serial.println("lt wall detected, drive forward");
-      forward(quarter_rotation);      //move robot forward
+      forward(quarter_rotation - 100);      //move robot forward
     }
     else {
       if (li_cerror < 0) { //negative error means too close
@@ -511,9 +500,9 @@ void stateSelector() {
   //Love();
   //Aggression();
   if (State == 0) {
-    WallBang();
-    if (rightPhoto > 900 || leftPhoto > 900) {
-      State = 0;
+    wallBang();
+    if (rightPhoto > 700 || leftPhoto > 700) {
+      State = 1;
     }
   } else if (State == 1) {
     goToLight();
@@ -934,3 +923,16 @@ void runToStop ( void ) {
 }
 
 
+void loop()
+{
+  updateSensors();      //Updates all of the sensor values and decides the robot state
+  //wallBang();           //wall following PD control
+  //forward(quarter_turn)
+  updateLight();
+  //  while (rotateToLight() == 1){
+  //    updateLight();
+  //  }
+  //
+  //  delay(500);
+  stateSelector();
+}
