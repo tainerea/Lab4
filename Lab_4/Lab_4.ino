@@ -5,7 +5,7 @@
   Author: Carlotta. A. Berry
   Date: December 31, 2016
 
-  This program provides the functionality of allowing a robot to perform basic wall folowing.  
+  This program provides the functionality of allowing a robot to perform basic wall folowing.
   The functions that this robot can perform are:
 
      Follow Right wall
@@ -18,7 +18,7 @@
 
   Wall Bang - This function contains the logic for making the robot follow a wall with PD control.  The state
                variable is used to track the current state of the robot.  If the robot only detects a wall on one
-               side, then it will follow that wall.  If a wall is detected on both sides of the robot, then the 
+               side, then it will follow that wall.  If a wall is detected on both sides of the robot, then the
                follow center code takes over.  If no walls are detected, then the robot will enter random wander.
 
   Additionally, to update sensor values and determine state there are the following functions
@@ -27,7 +27,7 @@
     updateSonar2() - This function updates the current IR values of all two Sonar sensors
     updateError() - This function updates the errors of each for every wall (right error, left error, distance from center)
     updateState() - This function updates the state of the robot
- 
+
   Hardware Connections:
   Stepper Enable          Pin 48
   Right Stepper Step      Pin 52
@@ -179,6 +179,18 @@ int derror;       //difference between left and right error to center robot in t
 
 int lastState = 0;  //Tracks the lats state that the robot was in.  This is used for outside corners.
 
+
+int x = 0;
+int y = 0;
+int angle = 0;
+int front;
+
+int moveCounter = 0;
+int State = 0;
+
+int lightState = 0;
+int lastSpin = 0;
+
 #define baud_rate 9600  //set serial communication baud rate
 
 #line 162 "C:\\Users\\moormaet\\AppData\\Local\\Temp\\Rar$DIa0.576\\lab_3\\lab_3.ino"
@@ -244,22 +256,56 @@ void setup()
   delay(1500);                                //wait 3 seconds before robot moves
 }
 
-void runTurn(int distLeft, int distRight){
- 
+void runTurn(int distLeft, int distRight) {
+
   stepperLeft.move(distLeft);
   stepperRight.move(distRight);
 
   stepperLeft.setSpeed(distLeft);
   stepperRight.setSpeed(distRight);
 
-  
+
   long counter = 0;
   long timeCycles = 35000;
 
-  while (counter < timeCycles){
+  while (counter < timeCycles) {
     stepperLeft.runSpeedToPosition();
     stepperRight.runSpeedToPosition();
     counter++;
+  }
+}
+
+void goToLight() {
+  int err = leftPhoto - rightPhoto;
+  if (state == 0) { //detect light
+    if (err < 0) {
+      spin(quarter_rotation, -1);
+      lastSpin = 1;
+    } else {
+      spin(quarter_rotation, 1);
+      lastSpin = 1;
+    }
+    state = 1;
+  } else if (state == 1) { // drive quarter rotation
+    forward(quarter_rotation);
+    moveCounter++;
+    if (front < 6 && front > 0) {
+      state == 2;
+    }
+  } else if (state == 2) { // docking
+    spin(half_rotation, 1);
+    state == 3;
+  } else if (state == 3) { // go back
+    forward(quarter_rotation);
+    moveCounter--;
+    if (moveCounter == 0) {
+      state == 4;
+    }
+  } else if (state == 4) {
+    spin(3 * quarter_rotation, lastSpin);
+    forward(half_rotation);
+    state == 0;
+    State = 0;
   }
 }
 
@@ -271,12 +317,18 @@ void updateLight() {
 void Fear() {
   int leftSpeed = leftPhoto;
   int rightSpeed = rightPhoto;
+  if (leftSpeed < 900 && rightSpeed < 900) {
+    return;
+  }
   runTurn(leftSpeed, rightSpeed);
 }
 
 void Love() {
-  int leftSpeed = 1000 - leftPhoto;
-  int rightSpeed = 1000 - rightPhoto;
+  int leftSpeed = rightPhoto;
+  int rightSpeed = leftPhoto;
+  if (leftSpeed < 900 && rightSpeed < 900) {
+    return;
+  }
   runTurn(leftSpeed, rightSpeed);
 }
 
@@ -287,23 +339,36 @@ void Explorer() {
 }
 
 void Aggression() {
-  int leftSpeed = rightPhoto;
-  int rightSpeed = leftPhoto;
+  int leftSpeed = 1000 - leftPhoto;
+  int rightSpeed = 1000 - rightPhoto;
   runTurn(leftSpeed, rightSpeed);
 }
 
-void stateSelector() {
-  updateLight();
-  //Fear();
-  //Explorer();
-  Love();
-  //Aggression();
+
+int rotateToLight() {
+  int err = leftPhoto - rightPhoto;
+  if (err < 20 && err > -20) {
+    return 0;
+  }
+  if (err < 0) {
+    spin(100, 1);
+  } else {
+    spin(100, 0);
+  }
+  return 1;
 }
 
 void loop()
 {
-  //updateSensors();      //Updates all of the sensor values and decides the robot state
+  updateSensors();      //Updates all of the sensor values and decides the robot state
   //wallBang();           //wall following PD control
+  //forward(quarter_turn)
+  updateLight();
+  //  while (rotateToLight() == 1){
+  //    updateLight();
+  //  }
+  //
+  //  delay(500);
   stateSelector();
 }
 
@@ -311,7 +376,7 @@ void loop()
 
   Description: This function contains the logic for making the robot follow a wall with PD control.  The state
                variable is used to track the current state of the robot.  If the robot only detects a wall on one
-               side, then it will follow that wall.  If a wall is detected on both sides of the robot, then the 
+               side, then it will follow that wall.  If a wall is detected on both sides of the robot, then the
                follow center code takes over.  If no walls are detected, then the robot will enter random wander.
 
   Inputs:
@@ -386,14 +451,14 @@ void wallBang() {
         pivot(quarter_rotation, 0);   //pivot left to straighten
       }
       else if (li_cerror > 0)  { //positive error means too far
- 
+
         pivot(quarter_rotation + abs(leftKp * li_cerror) - leftKd * li_derror, 0);      //make larger (left) pivot
         pivot(quarter_rotation, 1);   //pivot right to straighten
       }
     }
   }
   else if (bitRead(state, center) ) {//follow hallway
-      double rightKp = 5;  //The right proportional constant
+    double rightKp = 5;  //The right proportional constant
     double rightKd = 2;  //The right derivative constant
     int leftKp = 5;  //The left proportional constant
     int leftKd = 2;  //The left derivative constant
@@ -414,7 +479,7 @@ void wallBang() {
     }
   }
   else  if (bitRead(state, wander)) {
-    
+
     Serial.println("nothing to see here, I need to look for a wall");
     if (lastState == 0) {  // If you have tried to corner but couldn't find the wall again
       stop();
@@ -423,15 +488,15 @@ void wallBang() {
       spin(half_rotation, 0);
       forward(one_rotation);
       pivot(quarter_rotation, 1);
-      if (bitRead(flag, obFront)){
+      if (bitRead(flag, obFront)) {
         spin(half_rotation, 0);
       }
-    }else if (lastState < 0) { // If the last state was right wall following
+    } else if (lastState < 0) { // If the last state was right wall following
       forward(quarter_rotation);  //Move foward to clear the turn
       spin(half_rotation, 1);  //Turn right 90 degrees
       forward(two_rotation);  // Move forward 2 rotations
       lastState++;  //Reset to random wander
-    }else {  // If the last state was left wall following
+    } else {  // If the last state was left wall following
       forward(quarter_rotation); //Move forward to clear the turn
       spin(half_rotation, 0);  // turn left 90 degrees
       forward(two_rotation); // Mover forward 2 rotations
@@ -594,7 +659,7 @@ int getLeftDistance(long value) {
 
 */
 void updateIR() {
-  int front, back, left, right;         //declare IR variables
+  int back, left, right;         //declare IR variables
   front = getFrontDistance(analogRead(irFront));          //read front IR sensor
   back = getRearDistance(analogRead(irRear));            //read back IR sensor
   li_curr = getLeftDistance(analogRead(irLeft));            //read left IR sensor
@@ -605,7 +670,7 @@ void updateIR() {
   if (ri_curr < 12 && ri_curr > 0) {
     bitSet(flag, obRight);            //set the right obstacle
   } else {
-   
+
     bitClear(flag, obRight);          //clear the right obstacle
   }
 
@@ -621,7 +686,7 @@ void updateIR() {
   } else
     bitClear(flag, obFront);          //clear the front obstacle
 
-  
+
 
   ///////////////////////update variables
 
@@ -743,14 +808,14 @@ void updateState() {
     bitClear(state, wander);  //clear wander state
     bitClear(state, center);  //clear follow wall state
   }
-    else if (bitRead(flag, obLeft) && bitRead(flag, obRight) ) {
-      Serial.println("\tset follow hallway state");
-      bitSet(state, center);      //set the hallway state
-      //clear all other bits
-      bitClear(state, fright);    //clear follow wall state
-      bitClear(state, wander);    //clear wander state
-      bitClear(state, fleft);     //clear follow wall state
-    }
+  else if (bitRead(flag, obLeft) && bitRead(flag, obRight) ) {
+    Serial.println("\tset follow hallway state");
+    bitSet(state, center);      //set the hallway state
+    //clear all other bits
+    bitClear(state, fright);    //clear follow wall state
+    bitClear(state, wander);    //clear wander state
+    bitClear(state, fleft);     //clear follow wall state
+  }
 }
 
 
@@ -852,4 +917,19 @@ void runToStop ( void ) {
   }
 }
 
+
+void stateSelector() {
+  //Fear();
+  //Explorer();
+  //Love();
+  //Aggression();
+  if (State == 0) {
+    WallBang();
+    if (rightPhoto > 900 || leftPhoto > 900) {
+      State = 0;
+    }
+  } else if (State == 1) {
+    goToLight();
+  }
+}
 
