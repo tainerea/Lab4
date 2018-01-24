@@ -505,6 +505,21 @@ void wallBang() {
   }
 }
 
+void stateSelector() {
+  //Fear();
+  //Explorer();
+  //Love();
+  //Aggression();
+  if (State == 0) {
+    WallBang();
+    if (rightPhoto > 900 || leftPhoto > 900) {
+      State = 0;
+    }
+  } else if (State == 1) {
+    goToLight();
+  }
+}
+
 
 /*
 
@@ -912,24 +927,10 @@ void runToStop ( void ) {
       bitClear(state, movingL);   // clear bit for left motor moving
       stepperLeft.stop();//stop left motor
     }//
-    if (!bitRead(state, movingR) & !bitRead(state, movingL))
+    if (!bitRead(state, movingR) & !bitRead(state, movingL)) {
       runNow = 0;
-  }
-}
-
-
-void stateSelector() {
-  //Fear();
-  //Explorer();
-  //Love();
-  //Aggression();
-  if (State == 0) {
-    WallBang();
-    if (rightPhoto > 900 || leftPhoto > 900) {
-      State = 0;
     }
-  } else if (State == 1) {
-    goToLight();
   }
 }
+
 
